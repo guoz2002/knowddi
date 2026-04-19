@@ -40,7 +40,10 @@ def initialize_model(params, model):
     """
     if params.load_model and os.path.exists(os.path.join(params.exp_dir, 'best_graph_classifier.pth')):
         logging.info('Loading existing model from %s' % os.path.join(params.exp_dir, 'best_graph_classifier.pth'))
-        classifier = torch.load(os.path.join(params.exp_dir, 'best_graph_classifier.pth')).to(device=params.device)
+        classifier = torch.load(
+            os.path.join(params.exp_dir, 'best_graph_classifier.pth'),
+            map_location=params.device,
+        ).to(device=params.device)
     else:
         logging.info('No existing model found. Initializing new model..')
         classifier = model(params).to(device=params.device)

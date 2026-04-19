@@ -43,7 +43,7 @@ class Trainer(object):
         if params.dataset == 'drugbank':
             self.criterion = nn.CrossEntropyLoss()
         elif params.dataset == 'BioSNAP':
-            self.criterion = nn.BCELoss(reduce=False) 
+            self.criterion = nn.BCELoss(reduction='none')
         self.move_batch_to_device = move_batch_to_device_dgl
         self.reset_training_state()
         

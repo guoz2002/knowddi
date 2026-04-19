@@ -45,7 +45,7 @@ def links2subgraphs(adj_list, files_data, params, max_label_value=None):
     links_length = 0
     for split_name, split in files_data.items():
         links_length += len(split['triplets']) * 2
-    map_size = links_length * BYTES_PER_DATUM
+    map_size = max(int(links_length * BYTES_PER_DATUM * 0.25), 512 * 1024 ** 2)
 
     env = lmdb.open(params.db_path, map_size=map_size, max_dbs=6)
 
@@ -59,8 +59,13 @@ def links2subgraphs(adj_list, files_data, params, max_label_value=None):
                 subgraph_sizes.append(datum['subgraph_size'])
                 enc_ratios.append(datum['enc_ratio'])
                 num_pruned_nodes.append(datum['num_pruned_nodes'])
-                with env.begin(write=True, db=split_env) as txn:
-                    txn.put(str_id, serialize(datum))
+                while True:
+                    try:
+                        with env.begin(write=True, db=split_env) as txn:
+                            txn.put(str_id, serialize(datum))
+                        break
+                    except lmdb.MapFullError:
+                        env.set_mapsize(env.info()['map_size'] * 2)
 
     for split_name, split in files_data.items():
         logging.info(f"Extracting enclosing subgraphs for links in {split_name} set")

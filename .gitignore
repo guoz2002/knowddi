@@ -1,0 +1,5 @@
+.venv-knowddi/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd

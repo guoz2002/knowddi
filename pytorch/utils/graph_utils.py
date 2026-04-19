@@ -1,7 +1,6 @@
 import numpy as np
 import scipy.sparse as ssp
 import torch
-import networkx as nx
 import dgl
 import pickle
 import random
@@ -43,19 +42,22 @@ def ssp_multigraph_to_dgl(graph):
     """
     Converting ssp multigraph (i.e. list of adjs) to dgl multigraph.
     """
-    g_nx = nx.MultiDiGraph()
-    g_nx.add_nodes_from(list(range(graph[0].shape[0])))
-    # Add edges
-    for rel, adj in enumerate(graph):
-        # Convert adjacency matrix to tuples for nx0
-        nx_triplets = []
-        for src, dst in list(zip(adj.tocoo().row, adj.tocoo().col)):
-            nx_triplets.append((src, dst, {'type': rel}))
-        g_nx.add_edges_from(nx_triplets)
+    num_nodes = graph[0].shape[0]
+    src_nodes = []
+    dst_nodes = []
+    edge_types = []
 
-    # make dgl graph
-    g_dgl = dgl.DGLGraph(multigraph=True)
-    g_dgl = dgl.from_networkx(g_nx,edge_attrs=['type'])
+    for rel, adj in enumerate(graph):
+        adj_coo = adj.tocoo()
+        src_nodes.extend(adj_coo.row.tolist())
+        dst_nodes.extend(adj_coo.col.tolist())
+        edge_types.extend([rel] * len(adj_coo.row))
+
+    g_dgl = dgl.graph(
+        (torch.LongTensor(src_nodes), torch.LongTensor(dst_nodes)),
+        num_nodes=num_nodes,
+    )
+    g_dgl.edata['type'] = torch.LongTensor(edge_types)
     g_dgl.ndata['idx'] = torch.LongTensor(np.arange(g_dgl.num_nodes()))
     return g_dgl
 
@@ -120,7 +122,7 @@ def _bfs_relational(adj, roots, max_nodes_per_hop=None):
         next_lvl -= visited  # set difference
 
         if max_nodes_per_hop and max_nodes_per_hop < len(next_lvl):
-            next_lvl = set(random.sample(next_lvl, max_nodes_per_hop))
+            next_lvl = set(random.sample(sorted(next_lvl), max_nodes_per_hop))
 
         yield next_lvl
 

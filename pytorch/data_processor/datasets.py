@@ -33,7 +33,7 @@ class SubgraphDataset(Dataset):
         self.node_features, self.kge_entity2id = get_kge_embeddings(dataset, kge_model) if use_pre_embeddings else (None, None)
         BKG_file = '../data/{}/{}.txt'.format(dataset,BKG_file_name)
 
-        if not ssp_graph:
+        if ssp_graph is None:
             if dataset == 'drugbank' or dataset == 'drugbank_sub':
                 ssp_graph, triplets, entity2id, relation2id, id2entity, id2relation, rel = process_files_ddi(raw_data_paths, BKG_file)
             elif dataset == 'BioSNAP':
@@ -79,12 +79,15 @@ class SubgraphDataset(Dataset):
         return self.num_graphs
 
     def _prepare_subgraphs(self, nodes, n_labels):
-        subgraph = self.global_graph.subgraph(nodes)
-        subgraph.edata['type'] = self.global_graph.edata['type'][self.global_graph.subgraph(nodes).edata[dgl.EID]]
+        subgraph = dgl.node_subgraph(self.global_graph, nodes, store_ids=True)
+        subgraph.edata['type'] = self.global_graph.edata['type'][subgraph.edata[dgl.EID]]
         subgraph.ndata['idx'] = torch.LongTensor(np.array(nodes))
         subgraph = self._prepare_features(subgraph, n_labels)
-        _,_,edges_btw_roots = subgraph.edge_ids(0, 1,return_uv=True)
-        subgraph.remove_edges(edges_btw_roots)
+        try:
+            _, _, edges_btw_roots = subgraph.edge_ids(0, 1, return_uv=True)
+            subgraph.remove_edges(edges_btw_roots)
+        except dgl.DGLError:
+            pass
         
         directed_subgraph = self.extract_r_digraph(subgraph)
         return directed_subgraph
@@ -113,10 +116,10 @@ class SubgraphDataset(Dataset):
 
         total_edges = torch.unique(layer_edges_id, dim=0, sorted=True)
         if total_edges.numel():
-            r_digraph = dgl.edge_subgraph(graph,total_edges)
+            r_digraph = dgl.edge_subgraph(graph, total_edges, store_ids=True)
         else:
             # If the extracted subgraph has no edges, then the returned graph only has head and tail
-            r_digraph = dgl.node_subgraph(graph,total_nodes)
+            r_digraph = dgl.node_subgraph(graph, total_nodes, store_ids=True)
 
         return r_digraph
 

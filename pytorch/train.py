@@ -13,7 +13,6 @@ from utils.initialization_utils import initialize_experiment, initialize_model
 from data_processor.datasets import SubgraphDataset
 from data_processor.subgraph_extraction import generate_subgraph_datasets
 os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
-os.environ['CUDA_VISIBLE_DEVICES'] = '0,1,2,3'
 
 
 def process_dataset(params):
