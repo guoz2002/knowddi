@@ -3,6 +3,7 @@ import argparse
 import random
 import torch
 import numpy as np
+import json
 import logging
 from warnings import simplefilter
 from scipy.sparse import SparseEfficiencyWarning
@@ -87,6 +88,22 @@ def main(params):
         else Evaluator_multilabel(params, classifier, test_data)
     print(classifier)
 
+    if params.eval_only:
+        valid_result, _ = valid_evaluator.eval()
+        test_result, _ = test_evaluator.eval()
+        logging.info('Validation Performance: %s', valid_result)
+        logging.info('Test Performance: %s', test_result)
+        metrics_path = os.path.join(params.exp_dir, 'metrics_eval_only.json')
+        with open(metrics_path, 'w') as fout:
+            json.dump({
+                'experiment_name': params.experiment_name,
+                'dataset': params.dataset,
+                'mode': 'eval_only',
+                'validation': valid_result,
+                'test': test_result,
+            }, fout, indent=2)
+        return
+
     trainer = Trainer(params, classifier, train_data, valid_evaluator, test_evaluator)
     logging.info('start training...')
     trainer.train()
@@ -106,6 +123,7 @@ if __name__ == '__main__':
     parser.add_argument("--gpu", type=int, default=3, help="Which GPU to use?")
     parser.add_argument('--disable_cuda', action='store_true', help='Disable CUDA')
     parser.add_argument('--load_model', action='store_true', help='Load existing model?')
+    parser.add_argument('--eval_only', action='store_true', help='Only run validation/test using a saved model')
     parser.add_argument("--experiment_name", "-e", type=str, default="default", help="A folder with this name would be created to dump saved models and log files")
 
     # dataset
@@ -155,6 +173,15 @@ if __name__ == '__main__':
     parser.add_argument("--gsl_rel_emb_dim", type=int, default=32)
     parser.add_argument("--lamda", type=float, default=0.7)   
     parser.add_argument("--gsl_has_edge_emb", type=int, default=1)
+    parser.add_argument("--gsl_mode", type=str, default="baseline", choices=["baseline", "adaptive"])
+    parser.add_argument("--use_denoise", type=int, default=0)
+    parser.add_argument("--use_completion", type=int, default=0)
+    parser.add_argument("--gate_hidden_dim", type=int, default=32)
+    parser.add_argument("--gate_dropout", type=float, default=0.2)
+    parser.add_argument("--completion_threshold", type=float, default=0.1)
+    parser.add_argument("--completion_topk", type=int, default=0)
+    parser.add_argument("--denoise_alpha", type=float, default=1.0)
+    parser.add_argument("--completion_alpha", type=float, default=1.0)
 
     params = parser.parse_args()
 
@@ -179,5 +206,3 @@ if __name__ == '__main__':
         params.device = torch.device('cpu')
 
     main(params)
-
-

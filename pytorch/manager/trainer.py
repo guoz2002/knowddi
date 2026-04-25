@@ -46,12 +46,13 @@ class Trainer(object):
             self.criterion = nn.BCELoss(reduction='none')
         self.move_batch_to_device = move_batch_to_device_dgl
         self.reset_training_state()
-        
 
     def train_batch(self):
         total_loss = 0
         all_labels = []
         all_scores = []
+        graph_stat_sums = {}
+        graph_stat_steps = 0
         def init_fn(worker_id): 
             global GLOBAL_WORKER_ID
             GLOBAL_WORKER_ID = worker_id
@@ -78,6 +79,11 @@ class Trainer(object):
                 subgraph_data, relation_labels, polarity = self.move_batch_to_device(batch, self.params.device,multi_type=2)
             self.optimizer.zero_grad()
             scores = self.graph_classifier(subgraph_data)
+            graph_stats = getattr(self.graph_classifier.gsl_model, 'last_graph_stats', {})
+            if graph_stats:
+                graph_stat_steps += 1
+                for key, value in graph_stats.items():
+                    graph_stat_sums[key] = graph_stat_sums.get(key, 0.0) + float(value)
 
             if self.params.dataset == 'drugbank':
                 loss = self.criterion(scores, relation_labels)
@@ -111,12 +117,13 @@ class Trainer(object):
                 test_result, save_test_data = self.test_evaluator.eval()
                 logging.info('Test Performance:' + str(test_result) + 'in ' + str(time.time() - tic)+'s')
 
-
-                if result['auc'] >= self.best_metric:
+                selection_metric = result['primary_metric'] if self.params.dataset == 'drugbank' else result['auc']
+                test_selection_metric = test_result['primary_metric'] if self.params.dataset == 'drugbank' else test_result['auc']
+                if selection_metric >= self.best_metric:
                     self.save_classifier()
                     self.early_stop = 0
-                    self.best_metric = result['auc']
-                    self.test_best_metric = test_result['auc']
+                    self.best_metric = selection_metric
+                    self.test_best_metric = test_selection_metric
                     self.not_improved_count = 1
                     if self.params.dataset != 'BioSNAP':
                         logging.info('Test Performance Per Class:' + str(save_test_data) + 'in ' + str(time.time() - tic)+'s')
@@ -129,20 +136,31 @@ class Trainer(object):
                     if self.not_improved_count >= self.params.early_stop_epoch:
                         self.early_stop=1
                         break
-                self.last_metric = result['auc']
+                self.last_metric = selection_metric
                 self.scheduler.step()
 
         if self.params.dataset != 'BioSNAP':
-            auc = metrics.f1_score(all_labels, all_scores, average='macro')
-            auc_pr = metrics.f1_score(all_labels, all_scores, average='micro')
+            macro_f1 = metrics.f1_score(all_labels, all_scores, average='macro')
+            micro_f1 = metrics.f1_score(all_labels, all_scores, average='micro')
             f1 = metrics.f1_score(all_labels, all_scores, average=None)
-            return total_loss/b_idx, auc, auc_pr,f1
+            avg_graph_stats = {
+                key: value / max(graph_stat_steps, 1)
+                for key, value in graph_stat_sums.items()
+            }
+            return total_loss/b_idx, macro_f1, micro_f1, f1, avg_graph_stats
         else:
-            return total_loss/b_idx,0,0,0
+            avg_graph_stats = {
+                key: value / max(graph_stat_steps, 1)
+                for key, value in graph_stat_sums.items()
+            }
+            return total_loss/b_idx, 0, 0, 0, avg_graph_stats
 
     def save_classifier(self):
         torch.save(self.graph_classifier, os.path.join(self.params.exp_dir, 'best_graph_classifier.pth'))
-        logging.info('Better models found w.r.t accuracy. Saved it!')
+        if self.params.dataset == 'drugbank':
+            logging.info('Better model found w.r.t macro_f1. Saved it!')
+        else:
+            logging.info('Better models found w.r.t accuracy. Saved it!')
 
     def reset_training_state(self):
         self.best_metric = 0
@@ -154,9 +172,33 @@ class Trainer(object):
         self.reset_training_state()
         for epoch in range(1, self.params.num_epochs + 1):
             time_start = time.time()
-            loss, auc, auc_pr,f1 = self.train_batch()
+            loss, metric_1, metric_2, f1, graph_stats = self.train_batch()
             time_elapsed = time.time() - time_start
-            logging.info(f'Epoch {epoch} with loss: {loss}, training auc: {auc}, training auc_pr: {auc_pr}, best validation AUC: {self.best_metric} in {time_elapsed}')
-            # if self.early_stop==1 and epoch>=25:
-            #     logging.info(f"Validation performance didn\'t improve for {self.params.early_stop_epoch} epochs. Training stops.")
-            #     break
+            if self.params.dataset == 'drugbank':
+                logging.info(
+                    f'Epoch {epoch} with loss: {loss}, training macro_f1: {metric_1}, '
+                    f'training micro_f1: {metric_2}, best validation macro_f1: {self.best_metric} in {time_elapsed}'
+                )
+            else:
+                logging.info(
+                    f'Epoch {epoch} with loss: {loss}, training auc: {metric_1}, '
+                    f'training auc_pr: {metric_2}, best validation AUC: {self.best_metric} in {time_elapsed}'
+                )
+            if graph_stats:
+                logging.info(
+                    'Graph stats epoch %d: %s',
+                    epoch,
+                    ', '.join([f'{key}={value:.4f}' for key, value in sorted(graph_stats.items())]),
+                )
+            if self.early_stop == 1:
+                if self.params.dataset == 'drugbank':
+                    logging.info(
+                        "Validation macro_f1 didn't improve for %d evaluation rounds. Training stops.",
+                        self.params.early_stop_epoch,
+                    )
+                else:
+                    logging.info(
+                        "Validation AUC didn't improve for %d evaluation rounds. Training stops.",
+                        self.params.early_stop_epoch,
+                    )
+                break

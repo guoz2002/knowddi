@@ -61,11 +61,21 @@ class Evaluator_multiclass():
                 labels += label_ids.flatten().tolist()
                 scores += torch.argmax(score, dim=1).cpu().flatten().tolist() 
 
-        auc = metrics.f1_score(labels, scores, average='macro')
-        auc_pr = metrics.f1_score(labels, scores, average='micro')
+        macro_f1 = metrics.f1_score(labels, scores, average='macro')
+        acc = accuracy_score(labels, scores)
         f1 = metrics.f1_score(labels, scores, average=None)
         kappa = metrics.cohen_kappa_score(labels, scores)
-        return {'auc': auc, 'auc_pr': auc_pr, 'k':kappa}, {'f1': f1}
+        # Keep legacy aliases for trainer compatibility, but expose the real
+        # multiclass metrics explicitly for logging/reporting.
+        return {
+            'primary_metric': macro_f1,
+            'macro_f1': macro_f1,
+            'acc': acc,
+            'kappa': kappa,
+            'auc': macro_f1,
+            'auc_pr': acc,
+            'k': kappa,
+        }, {'f1': f1}
 
 class Evaluator_multilabel():
     """
@@ -105,8 +115,18 @@ class Evaluator_multilabel():
                             else:
                                 pred_class[i] = {'pred':[p], 'pol':[pol], 'pred_label':[1 if p > 0.5 else 0]}
                                 
-        roc_auc = [ roc_auc_score(pred_class[l]['pol'], pred_class[l]['pred']) for l in pred_class]
-        prc_auc = [ average_precision_score(pred_class[l]['pol'], pred_class[l]['pred']) for l in pred_class]
-        ap =  [accuracy_score(pred_class[l]['pol'], pred_class[l]['pred_label']) for l in pred_class]
-        return {'auc': np.mean(roc_auc), 'auc_pr': np.mean(prc_auc), 'f1': np.mean(ap)}, {"auc_all":roc_auc,"aupr_all":prc_auc, "f1_all":ap}
+        roc_auc = [roc_auc_score(pred_class[l]['pol'], pred_class[l]['pred']) for l in pred_class]
+        prc_auc = [average_precision_score(pred_class[l]['pol'], pred_class[l]['pred']) for l in pred_class]
+        ap = [accuracy_score(pred_class[l]['pol'], pred_class[l]['pred_label']) for l in pred_class]
+        mean_roc_auc = np.mean(roc_auc)
+        mean_prc_auc = np.mean(prc_auc)
+        mean_ap = np.mean(ap)
+        return {
+            'auc': mean_roc_auc,
+            'auc_pr': mean_prc_auc,
+            'f1': mean_ap,
+            'auroc': mean_roc_auc,
+            'auprc': mean_prc_auc,
+            'ap50': mean_ap,
+        }, {"auc_all": roc_auc, "aupr_all": prc_auc, "f1_all": ap}
 
