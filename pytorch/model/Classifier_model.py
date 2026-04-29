@@ -23,7 +23,7 @@ class Classifier_model(torch.nn.Module):
         self.W_final = nn.Linear(3 * self.score_dim , self.n_rel)  # get score 
 
 
-    def forward(self,sub_graphs):
+    def _forward_with_graph(self, sub_graphs):
         g = sub_graphs
         self.global_graph.ndata['h'] = self.embedding_model(self.global_graph)
         g.ndata['h'] = self.global_graph.nodes[g.ndata['idx']].data['h']
@@ -41,4 +41,11 @@ class Classifier_model(torch.nn.Module):
         
         pred = torch.cat([g_out, head_hidden, tail_hidden], dim=1)
         scores = self.W_final(pred)
+        return scores, complete_graph
+
+    def forward(self,sub_graphs):
+        scores, _ = self._forward_with_graph(sub_graphs)
         return scores
+
+    def forward_with_graph(self, sub_graphs):
+        return self._forward_with_graph(sub_graphs)
