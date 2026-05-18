@@ -1,15 +1,8 @@
 """
-图4-2 四组受控变体在 graph_structure_learner 中的开关路径示意
-gsl_mode 多路选择器 → use_denoise / use_completion 布尔标志 → 边权融合公式
-
-四组变体：
-    A. baseline       use_denoise=0, use_completion=0
-    B. denoise_only   use_denoise=1, use_completion=0
-    C. completion_only use_denoise=0, use_completion=1
-    D. full           use_denoise=1, use_completion=1
-
-字体大小：与图4-1 风格一致（标题16 / 列标题14 / 方框12 / 公式13 / 图例12）
-"""
+图4-2 四组消融变体的图结构学习流程对比
+普通模型框架图：展示 A/B/C/D 四组变体中去噪模块和补全模块的激活状态
+不含命令行参数，以模块激活/禁用的方框图形式展示
+"""  # 修改新增：改为普通模型框架图，去除CLI参数标注
 
 import os
 import matplotlib.pyplot as plt
@@ -22,113 +15,122 @@ plt.rcParams['axes.unicode_minus'] = False
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'fig4_2_switch_path.png')
 
 
-def add_box(ax, xy, w, h, text, fc='#EAF2FB', ec='#1F49D8', fontsize=12, bold=False, lw=1.4):
+def add_box(ax, xy, w, h, text, fc='#EAF2FB', ec='#1F49D8', fontsize=11,
+            bold=False, lw=1.5, alpha=1.0, tc='#0B1F4B'):
     box = FancyBboxPatch((xy[0], xy[1]), w, h,
-                         boxstyle='round,pad=0.02,rounding_size=0.06',
-                         linewidth=lw, edgecolor=ec, facecolor=fc)
+                         boxstyle='round,pad=0.03,rounding_size=0.07',
+                         linewidth=lw, edgecolor=ec, facecolor=fc, alpha=alpha)
     ax.add_patch(box)
     ax.text(xy[0] + w / 2, xy[1] + h / 2, text,
             ha='center', va='center', fontsize=fontsize,
-            fontweight='bold' if bold else 'normal', color='#0B1F4B')
+            fontweight='bold' if bold else 'normal', color=tc,
+            multialignment='center', alpha=alpha)
 
 
-def arrow(ax, p1, p2, color='#444', lw=1.5, style='->'):
+def arrow(ax, p1, p2, color='#555', lw=1.5, style='->', alpha=1.0):
     ax.add_patch(FancyArrowPatch(p1, p2, arrowstyle=style,
-                                 mutation_scale=14, linewidth=lw, color=color))
+                                 mutation_scale=13, linewidth=lw,
+                                 color=color, alpha=alpha))
+
+
+def draw_variant(ax, x0, variant_label, variant_name, use_denoise, use_completion,
+                 var_fc, var_ec):
+    W = 2.80
+    BOX_W = W - 0.10
+    BX = x0 + 0.05
+    BOX_FS = 10.5
+    LABEL_FS = 11
+
+    add_box(ax, (x0, 9.60), W, 0.80,
+            f'{variant_name}',  # 修改新增：去除 A/B/C/D 字母标签，只保留中文名称
+            fc=var_fc, ec=var_ec, fontsize=LABEL_FS, bold=True, lw=2.0)
+
+    add_box(ax, (BX, 8.55), BOX_W, 0.75,
+            '局部子图\n（药物对 + BKG邻居）',
+            fc='#F4F7FB', ec='#7A8AA8', fontsize=BOX_FS)
+    arrow(ax, (x0 + W / 2, 8.55), (x0 + W / 2, 8.20))
+
+    add_box(ax, (BX, 7.35), BOX_W, 0.75,
+            'GraphSAGE\n节点编码',
+            fc='#EAF2FB', ec='#1F49D8', fontsize=BOX_FS)
+    arrow(ax, (x0 + W / 2, 7.35), (x0 + W / 2, 7.00))
+
+    add_box(ax, (BX, 6.15), BOX_W, 0.75,
+            '基础门控打分\n$s_g$',
+            fc='#EAF2FB', ec='#1F49D8', fontsize=BOX_FS)
+    arrow(ax, (x0 + W / 2, 6.15), (x0 + W / 2, 5.80))
+
+    if use_denoise:
+        d_fc, d_ec, d_alpha, d_tc = '#FCEEF1', '#C0392B', 1.0, '#0B1F4B'
+        d_text = '去噪打分\n$s_d$（激活）'
+    else:
+        d_fc, d_ec, d_alpha, d_tc = '#F0F0F0', '#AAAAAA', 0.55, '#888888'
+        d_text = '去噪打分\n$s_d$（禁用）'
+    add_box(ax, (BX, 4.95), BOX_W, 0.75,
+            d_text, fc=d_fc, ec=d_ec, fontsize=BOX_FS, alpha=d_alpha, tc=d_tc)
+    arrow(ax, (x0 + W / 2, 4.95), (x0 + W / 2, 4.60), alpha=0.9 if use_denoise else 0.3)
+
+    if use_completion:
+        c_fc, c_ec, c_alpha, c_tc = '#FCEEF1', '#C0392B', 1.0, '#0B1F4B'
+        c_text = '补全打分\n$s_c$（激活）'
+    else:
+        c_fc, c_ec, c_alpha, c_tc = '#F0F0F0', '#AAAAAA', 0.55, '#888888'
+        c_text = '补全打分\n$s_c$（禁用）'
+    add_box(ax, (BX, 3.75), BOX_W, 0.75,
+            c_text, fc=c_fc, ec=c_ec, fontsize=BOX_FS, alpha=c_alpha, tc=c_tc)
+    arrow(ax, (x0 + W / 2, 3.75), (x0 + W / 2, 3.40), alpha=0.9 if use_completion else 0.3)
+
+    add_box(ax, (BX, 2.55), BOX_W, 0.75,
+            '边权融合\n$w_{ij} = \\sigma(\\cdot)$',
+            fc='#FFF7E6', ec='#E08600', fontsize=BOX_FS)
+    arrow(ax, (x0 + W / 2, 2.55), (x0 + W / 2, 2.20))
+
+    add_box(ax, (BX, 1.35), BOX_W, 0.75,
+            '自适应图结构\n→ 关系预测',
+            fc='#EFFAEF', ec='#2E8B57', fontsize=BOX_FS)
+
+    alpha_d_str = r'$\alpha_d s_d$' if use_denoise else r'$0$'
+    alpha_c_str = r'$\alpha_c s_c$' if use_completion else r'$0$'
+    eq = r'$s_g + $' + alpha_d_str + r'$ + $' + alpha_c_str
+    ax.text(x0 + W / 2, 0.85, eq,
+            ha='center', va='center', fontsize=9.5, color='#5A3000')
 
 
 def main():
-    fig, ax = plt.subplots(figsize=(13, 9.0))
+    fig, ax = plt.subplots(figsize=(13, 11))
     ax.set_xlim(0, 13)
     ax.set_ylim(0, 11.5)
     ax.axis('off')
 
-    HEADER_FS = 14
-    BOX_FS = 12
-    LEGEND_FS = 12
-
-    # 标题
-    ax.text(6.5, 11.05, '图4-2 四组受控变体在 graph_structure_learner 中的开关路径',
-            ha='center', va='center', fontsize=16, fontweight='bold', color='#0B1F4B')
-
-    # ── 一、命令行入口（顶层） ───────────────────
-    ax.text(6.5, 10.40, '一、命令行入口  pytorch/train.py',
-            fontsize=HEADER_FS, fontweight='bold', color='#0B1F4B', ha='center')
-
-    add_box(ax, (1.5, 9.10), 10.0, 1.10,
-            '--gsl_mode  ∈  {baseline ,  denoise_only ,  completion_only ,  full}\n'
-            '--use_denoise (0/1)        --use_completion (0/1)        --denoise_alpha=1.0   --completion_alpha=1.0',
-            fc='#FFF7E6', ec='#E08600', fontsize=BOX_FS)
-
-    # ── 二、四组变体的开关组合（中层） ──────────
-    ax.text(6.5, 8.55, '二、四组受控变体  →  gsl_mode 多路选择器分发到不同布尔组合',
-            fontsize=HEADER_FS, fontweight='bold', color='#0B1F4B', ha='center')
+    ax.text(6.5, 11.15, '图4-2  四组消融变体的图结构学习流程对比',
+            ha='center', va='center', fontsize=15,
+            fontweight='bold', color='#0B1F4B')
 
     variants = [
-        # x_left, name, use_denoise, use_completion, color_face, color_edge
-        (0.30, 'A.  baseline',         '0', '0', '#F4F7FB', '#3A5BAA'),
-        (3.40, 'B.  denoise_only',     '1', '0', '#EAF2FB', '#1F49D8'),
-        (6.50, 'C.  completion_only',  '0', '1', '#FCEEF1', '#C0392B'),
-        (9.60, 'D.  full',             '1', '1', '#EFFAEF', '#2E8B57'),
+        (0.30, '基线',      False, False, '#F4F7FB', '#3A5BAA'),
+        (3.40, '仅去噪',    True,  False, '#FCEEF1', '#C0392B'),
+        (6.50, '仅补全',    False, True,  '#EAF2FB', '#1F49D8'),
+        (9.60, '去噪+补全', True,  True,  '#EFFAEF', '#2E8B57'),
     ]
-    for (x, name, ud, uc, fc, ec) in variants:
-        add_box(ax, (x, 6.40), 3.10, 1.95,
-                f'{name}\n\nuse_denoise = {ud}\nuse_completion = {uc}',
-                fc=fc, ec=ec, fontsize=BOX_FS, bold=True)
+    for (x0, name, ud, uc, fc, ec) in variants:
+        draw_variant(ax, x0, '', name, ud, uc, fc, ec)  # 修改新增：label 传空字符串，只显示中文名
 
-    # 命令行 → 四组变体（虚线分发）
-    for x in [1.85, 4.95, 8.05, 11.15]:
-        arrow(ax, (6.5, 9.10), (x, 8.35), color='#888', lw=1.2)
+    for x in [3.30, 6.40, 9.50]:
+        ax.plot([x, x], [0.60, 10.50], '--', color='#CCCCCC', lw=0.9, zorder=0)
 
-    # ── 三、graph_structure_learner 内部融合公式（底层） ──
-    ax.text(6.5, 5.85, '三、graph_structure_learner 中的边权融合（pytorch/model/gsl_model.py）',
-            fontsize=HEADER_FS, fontweight='bold', color='#0B1F4B', ha='center')
+    ax.text(6.5, 0.30,
+            '四组变体共享同一 EdgeGateNetwork 参数，仅通过指示变量控制去噪/补全项是否参与边权融合',
+            ha='center', va='center', fontsize=10, color='#5A6B8C', style='italic')
 
-    # 通用融合公式说明
-    add_box(ax, (1.0, 4.30), 11.0, 1.20,
-            r'$w_{ij}=\sigma(\,s_g + \alpha_d\cdot \mathbf{1}_{\mathrm{denoise}}\cdot s_d + \alpha_c\cdot \mathbf{1}_{\mathrm{compl}}\cdot s_c\,)$' + '\n'
-            r'$\mathbf{1}_{\mathrm{denoise}}$=use_denoise，$\mathbf{1}_{\mathrm{compl}}$=use_completion；mask: $s_d$ 仅对原始边、$s_c$ 仅对新增候选边生效',
-            fc='#FFF7E6', ec='#E08600', fontsize=BOX_FS + 1)
-
-    # 四组变体在公式中的等价形式
-    eq_y = 2.80
-    add_box(ax, (0.30, eq_y), 3.10, 1.20,
-            r'A: $w_{ij}=\sigma(s_g)$' + '\n（仅基础门控）',
-            fc='#F4F7FB', ec='#3A5BAA', fontsize=BOX_FS)
-    add_box(ax, (3.40, eq_y), 3.10, 1.20,
-            r'B: $w_{ij}=\sigma(s_g + \alpha_d s_d)$' + '\n（去噪生效）',
-            fc='#EAF2FB', ec='#1F49D8', fontsize=BOX_FS)
-    add_box(ax, (6.50, eq_y), 3.10, 1.20,
-            r'C: $w_{ij}=\sigma(s_g + \alpha_c s_c)$' + '\n（补全生效）',
-            fc='#FCEEF1', ec='#C0392B', fontsize=BOX_FS)
-    add_box(ax, (9.60, eq_y), 3.10, 1.20,
-            r'D: $w_{ij}=\sigma(s_g + \alpha_d s_d + \alpha_c s_c)$' + '\n（去噪+补全联合）',
-            fc='#EFFAEF', ec='#2E8B57', fontsize=BOX_FS)
-
-    # 变体框 → 等价公式 的箭头
-    for x in [1.85, 4.95, 8.05, 11.15]:
-        arrow(ax, (x, 6.40), (x, 4.00), color='#888', lw=1.4, style='->')
-
-    # 公式 → 等价形式（虚线分发）
-    for x in [1.85, 4.95, 8.05, 11.15]:
-        arrow(ax, (6.5, 4.30), (x, 4.00), color='#bbb', lw=0.8)
-
-    # ── 底部说明 ─────────────────────────────────
-    ax.text(6.5, 1.20,
-            '注：四组变体共享同一 EdgeGateNetwork 与同一组可训练参数；\n'
-            '开关只决定融合公式中各打分项的指示变量，不会引入额外参数，保证消融对比的公平性。',
-            ha='center', va='center', fontsize=BOX_FS, color='#0B1F4B')
-
-    # ── 图例 ──────────────────────────────────────
     legend_handles = [
-        mpatches.Patch(facecolor='#FFF7E6', edgecolor='#E08600', label='命令行 / 融合公式'),
-        mpatches.Patch(facecolor='#F4F7FB', edgecolor='#3A5BAA', label='A. baseline (原版退化)'),
-        mpatches.Patch(facecolor='#EAF2FB', edgecolor='#1F49D8', label='B. denoise_only'),
-        mpatches.Patch(facecolor='#FCEEF1', edgecolor='#C0392B', label='C. completion_only'),
-        mpatches.Patch(facecolor='#EFFAEF', edgecolor='#2E8B57', label='D. full (去噪+补全)'),
+        mpatches.Patch(facecolor='#EAF2FB', edgecolor='#1F49D8', label='GraphSAGE编码 / 基础门控（共享）'),
+        mpatches.Patch(facecolor='#FCEEF1', edgecolor='#C0392B', label='去噪/补全打分（激活）'),
+        mpatches.Patch(facecolor='#F0F0F0', edgecolor='#AAAAAA', label='去噪/补全打分（禁用）'),
+        mpatches.Patch(facecolor='#FFF7E6', edgecolor='#E08600', label='边权融合'),
+        mpatches.Patch(facecolor='#EFFAEF', edgecolor='#2E8B57', label='自适应图结构 → 关系预测'),
     ]
     ax.legend(handles=legend_handles, loc='lower center',
-              bbox_to_anchor=(0.5, -0.04), ncol=5, frameon=False, fontsize=LEGEND_FS)
+              bbox_to_anchor=(0.5, -0.04), ncol=3, frameon=False, fontsize=10)
 
     plt.tight_layout()
     plt.savefig(OUT, dpi=200, bbox_inches='tight')

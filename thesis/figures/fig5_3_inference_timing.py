@@ -31,17 +31,17 @@ def main():
     ax.set_xlim(0, 12)
     ax.set_ylim(0, 4.6)
     ax.axis('off')
-    ax.set_title('（a）单个 batch 推理时延测量段时序：synchronize 包夹的 t0 → t1',
+    ax.set_title('（a）单个 batch 推理时延测量段时序：GPU同步包夹的计时窗口',  # 修改新增：去除代码参数
                  fontsize=HEADER_FS + 1, fontweight='bold',
                  color='#0B1F4B', pad=8, loc='left')
 
     # 五个阶段
     phases = [
         ('DataLoader\n取 batch', 0.4, 1.6, '#F4F7FB', '#3A5BAA', 'cpu'),
-        ('torch.cuda.\nsynchronize ①',  2.0, 1.0, '#FFF7E6', '#E08600', 'sync'),
+        ('GPU\n同步点 ①',  2.0, 1.0, '#FFF7E6', '#E08600', 'sync'),  # 修改新增：去除API名称
         ('GraphSAGE → GSL → Classifier\n（GPU 前向）', 3.0, 4.4, '#EAF2FB', '#1F49D8', 'gpu'),
         ('指标累计\n（CPU 侧）', 7.4, 1.6, '#F4F7FB', '#3A5BAA', 'cpu'),
-        ('torch.cuda.\nsynchronize ②', 9.0, 1.0, '#FFF7E6', '#E08600', 'sync'),
+        ('GPU\n同步点 ②', 9.0, 1.0, '#FFF7E6', '#E08600', 'sync'),  # 修改新增：去除API名称
     ]
     bar_y = 1.7
     bar_h = 1.1
@@ -63,8 +63,8 @@ def main():
     # t0 / t1 标记
     t0_x = 2.5  # synchronize ① 中点
     t1_x = 9.5  # synchronize ② 中点
-    for tx, label, color in [(t0_x, 't0 = perf_counter()', '#C0392B'),
-                             (t1_x, 't1 = perf_counter()', '#C0392B')]:
+    for tx, label, color in [(t0_x, '计时起点 t0', '#C0392B'),
+                             (t1_x, '计时终点 t1', '#C0392B')]:  # 修改新增：去除API名称
         ax.plot([tx, tx], [bar_y - 0.1, bar_y + bar_h + 0.1],
                 color=color, linewidth=2.0, linestyle='--')
         ax.text(tx, bar_y + bar_h + 0.45, label, ha='center', va='bottom',
@@ -78,7 +78,7 @@ def main():
 
     # 测量公式
     ax.text(6.0, 4.05,
-            '单 batch 推理时延 ≈ t1 - t0  →  累加得到 inference_total_latency（分钟）',
+            '单 batch 推理时延 ≈ t1 - t0  →  累加得到批次推理总时延（分钟）',  # 修改新增：去除变量名
             ha='center', va='center', fontsize=BOX_FS + 1,
             color='#7C2C20', fontweight='bold')
 
@@ -99,7 +99,7 @@ def main():
     ax.set_xlim(0, 12)
     ax.set_ylim(0, 4.8)
 
-    ax.set_title('（b）显存峰值测量：reset_peak_memory_stats 与 max_memory_allocated 的配对窗口',
+    ax.set_title('（b）显存峰值测量：峰值重置 与 峰值读取 的配对窗口',  # 修改新增：去除API名称
                  fontsize=HEADER_FS + 1, fontweight='bold',
                  color='#0B1F4B', pad=8, loc='left')
 
@@ -136,10 +136,10 @@ def main():
     ax.plot([read_x, read_x], [0.4, 4.5], color='#C0392B',
             linestyle='-', linewidth=2.2)
 
-    ax.text(reset_x, 4.55, '① reset_peak_memory_stats()',
+    ax.text(reset_x, 4.55, '① 重置峰值记录',  # 修改新增：去除API名称
             ha='left', va='bottom', fontsize=BOX_FS,
             color='#2E8B57', fontweight='bold')
-    ax.text(read_x, 4.55, '② max_memory_allocated()',
+    ax.text(read_x, 4.55, '② 读取峰值显存',  # 修改新增：去除API名称
             ha='right', va='bottom', fontsize=BOX_FS,
             color='#C0392B', fontweight='bold')
 
@@ -153,17 +153,17 @@ def main():
     ax.plot(peak_t, peak_v, marker='o', markersize=10,
             markerfacecolor='#FFF7E6', markeredgecolor='#E08600',
             markeredgewidth=2.0, zorder=5)
-    ax.annotate(f'峰值显存\n（max_memory_allocated 读到 {peak_v:.2f} GiB）',
+    ax.annotate(f'峰值显存\n（峰值约 {peak_v:.2f} GiB）',  # 修改新增：去除API名称
                 xy=(peak_t, peak_v), xytext=(peak_t + 1.6, peak_v + 0.4),
                 fontsize=BOX_FS, color='#E08600', fontweight='bold',
                 arrowprops=dict(arrowstyle='->', color='#E08600', lw=1.4))
 
     # 阶段标注（淡色）
     stage_marks = [(0.5, 2.5, 'DataLoader 取 batch'),
-                   (2.5, 3.0, 'sync ①'),
+                   (2.5, 3.0, 'GPU同步 ①'),  # 修改新增：去除API名称
                    (3.0, 7.4, 'GPU 前向（GraphSAGE / GSL / Classifier）'),
                    (7.4, 9.0, '指标累计'),
-                   (9.0, 9.6, 'sync ②')]
+                   (9.0, 9.6, 'GPU同步 ②')]  # 修改新增：去除API名称
     for x0, x1, lab in stage_marks:
         ax.text((x0 + x1) / 2, 0.15, lab, ha='center', va='center',
                 fontsize=BOX_FS - 2, color='#5A6B8C', style='italic')
@@ -182,7 +182,7 @@ def main():
                   color='#0B1F4B', labelpad=4)
 
     # 顶部总标题
-    fig.suptitle('图5-3  推理时延测量段时序示意 与 显存峰值 reset/read 配对关系图',
+    fig.suptitle('图5-3  推理时延测量时序示意 与 显存峰值配对关系图',  # 修改新增：去除代码参数
                  fontsize=TITLE_FS, fontweight='bold', color='#0B1F4B',
                  y=0.985)
 
@@ -193,11 +193,11 @@ def main():
         mpatches.Patch(facecolor='#EAF2FB', edgecolor='#1F49D8',
                        label='GPU 前向（GraphSAGE / GSL / Classifier）'),
         mpatches.Patch(facecolor='#FFF7E6', edgecolor='#E08600',
-                       label='torch.cuda.synchronize 同步点'),
+                       label='GPU 同步点'),  # 修改新增：去除API名称
         mpatches.Patch(facecolor='#FCEEF1', edgecolor='#C0392B',
-                       label='时延测量窗口（t0 → t1）'),
+                       label='时延测量窗口（计时起点→终点）'),  # 修改新增：去除变量名
         mpatches.Patch(facecolor='#EFFAEF', edgecolor='#2E8B57',
-                       label='显存峰值测量窗口（reset → read）'),
+                       label='显存峰值测量窗口（重置→读取）'),  # 修改新增：去除API名称
     ]
     fig.legend(handles=handles, loc='lower center', fontsize=BOX_FS,
                ncol=3, frameon=True, framealpha=0.92,

@@ -41,7 +41,7 @@ def main():
     # 主曲线
     ax.plot(epochs, curve, color='#C0392B', linewidth=2.4,
             marker='o', markersize=5, markerfacecolor='white',
-            markeredgewidth=1.6, label='completion_active_ratio')
+            markeredgewidth=1.6, label='补全激活比例')  # 修改新增：图例改为中文
 
     # 收敛参考线
     converged = float(np.mean(curve[-10:]))
@@ -77,7 +77,7 @@ def main():
     ax.set_xticks(np.arange(0, 41, 5))
     ax.set_yticks(np.arange(0.0, 0.61, 0.1))
     ax.set_xlabel('训练 epoch', fontsize=BOX_FS + 1, color='#0B1F4B', labelpad=8)
-    ax.set_ylabel('completion_active_ratio', fontsize=BOX_FS + 1,
+    ax.set_ylabel('补全激活比例', fontsize=BOX_FS + 1,  # 修改新增：纵坐标改为中文
                   color='#0B1F4B', labelpad=8)
     ax.tick_params(axis='both', labelsize=BOX_FS, colors='#0B1F4B')
     for spine in ['top', 'right']:
@@ -90,14 +90,14 @@ def main():
     handles = [
         plt.Line2D([0], [0], color='#C0392B', lw=2.4, marker='o',
                    markerfacecolor='white', markeredgewidth=1.5,
-                   label='completion_active_ratio'),
+                   label='补全激活比例'),  # 修改新增：图例改为中文
         plt.Line2D([0], [0], color='#2E8B57', lw=1.8, linestyle='--',
                    label=f'后 10 epoch 均值 ≈ {converged:.3f}'),
     ]
     ax.legend(handles=handles, fontsize=BOX_FS, loc='center right',
               frameon=True, framealpha=0.92, edgecolor='#B7C0D4', ncol=1)
 
-    ax.set_title('图4-4  TWOSIDES 上 completion_active_ratio 随 epoch 的变化曲线',
+    ax.set_title('图4-4  TWOSIDES 上补全激活比例随训练轮次的变化曲线',  # 修改新增：标题改为中文
                  fontsize=TITLE_FS, fontweight='bold', color='#0B1F4B', pad=12)
 
     out_path = os.path.join(os.path.dirname(__file__),

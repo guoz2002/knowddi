@@ -38,13 +38,13 @@ def close(d): return d + d[:1]
 
 fig, ax = plt.subplots(figsize=(7, 7), subplot_kw=dict(polar=True))
 
-ax.plot(angles, close(sparse),  'b-o', linewidth=2.5, markersize=8, label='Sparse-only（仅稀疏化）')
+ax.plot(angles, close(sparse),  'b-o', linewidth=2.5, markersize=8, label='方案A：仅拓扑稀疏化')  # 修改新增：图例改为纯中文
 ax.fill(angles, close(sparse),  alpha=0.12, color='blue')
 
-ax.plot(angles, close(feature), 'r-s', linewidth=2.5, markersize=8, label='Feature-only（仅特征压缩）')
+ax.plot(angles, close(feature), 'r-s', linewidth=2.5, markersize=8, label='方案B：仅特征维度压缩')  # 修改新增：图例改为纯中文
 ax.fill(angles, close(feature), alpha=0.12, color='red')
 
-ax.plot(angles, close(joint),   'g-^', linewidth=2.5, markersize=8, label='Joint（联合轻量化）')
+ax.plot(angles, close(joint),   'g-^', linewidth=2.5, markersize=8, label='方案C：协同优化（联合）')  # 修改新增：图例改为纯中文
 ax.fill(angles, close(joint),   alpha=0.12, color='green')
 
 # 设置轴
